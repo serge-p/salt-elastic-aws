@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #
-# Header goes here, version .0.0.1, author: Sergey Paramonov
+# $Example Header: deploy_vm.sh,v 0.2 2016/03/07 svp Exp $
 #
 ######################################################################################
 ######################################################################################
@@ -11,22 +11,15 @@
 ######################################################################################
 
 
-myname="drop_webserver.sh"
+myname="drop_vm.sh"
 DEFAULT_SLEEP=60
-GIT_REPO=github.com/serge-p/webserver
-DOCUMENT_ROOT=/var/www/svp
-WWW_USER=www
+EC2_BASE=/tmp/ec2
 
-
+ 
 #
 # export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
 # export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
 #
-# do_set_java_env() {
-	# export JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home
-	# export EC2_HOME=/usr/local/ec2/ec2-api-tools-1.7.5.0
-	# export PATH=$PATH:$EC2_HOME/bin
-# }
 
 
 ######################################################################################
@@ -87,6 +80,26 @@ export ID=$1
 ######################################################################################
 ######################################################################################
 
+do_java_check() {
+
+    echoinfo "Checking for Java binaries"
+    which java 1>/dev/null || echoerror "Java no found"  
+    echoinfo "Java Home $(/usr/libexec/java_home)" || echoerror "Java Home not found"
+    echoinfo "$(java -fullversion 2>&1)"
+}
+
+
+
+
+do_set_java_env() {
+    ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1 || return 1
+    export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
+    export JAVA_HOME=$(/usr/libexec/java_home) || echoerror "Unable to set JAVA_HOME"
+    export PATH=$PATH:$EC2_HOME/bin
+ }
+
+
+
 do_update_ec2_sec_group() { 
 
     ec2-revoke default -p -1 || echowarn "Unable to delete rule in default security group" 
@@ -110,6 +123,7 @@ do_drop_ec2_instance() {
 ######################################################################################
 
 detect_color_support
-# do_set_java_env
+do_java_check
+do_set_java_env
 do_update_ec2_sec_group
 do_drop_ec2_instance

@@ -1,7 +1,6 @@
-#!/bin/sh -
+#!/bin/sh
 #
-#
-# Header goes here, version .0.0.1, author: Sergey Paramonov
+# $Example Header: deploy_vm.sh,v 0.2 2016/03/07 svp Exp $
 #
 ######################################################################################
 ######################################################################################
@@ -11,22 +10,20 @@
 ######################################################################################
 
 
-myname="deploy_webserver.sh"
+myname="deploy_vm.sh"
 DEFAULT_SLEEP=3
-GIT_REPO=github.com/serge-p/webserver
-DOCUMENT_ROOT=/var/www/svp
-WWW_USER=www
+GIT_REPO=github.com/serge-p/salt-elastic-aws
+# DOCUMENT_ROOT=/var/www/svp
+ELK_USER=elastic
+EC2_BASE=/tmp/ec2
+AMI_ID=ami-8fcee4e5
 
 
 #
 # export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
 # export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
 #
-# do_set_java_env() {
-	# export JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home
-	# export EC2_HOME=/usr/local/ec2/ec2-api-tools-1.7.5.0
-	# export PATH=$PATH:$EC2_HOME/bin
-# }
+
 
 
 ######################################################################################
@@ -69,13 +66,21 @@ echowarn() {
 ######################################################################################
 
 usage() {
-    cat << EOT
- Usage :  ${myname} [type]
+cat << EOT
 
-  Installation types:
-    - shell ?? Not really, too easy .. 
-    - salt : The only default option for a new instance config 
-    - chief ?? Ok, Maybe next time :-)
+set your AWS environment variables first as following:
+
+export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
+export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX 
+
+Usage :  ${myname}
+
+
+Bootstrap options:
+    - salt masterless 
+##    - shell 
+##    - vagrant
+##    - puppet
 
 EOT
 } 
@@ -86,36 +91,57 @@ EOT
 ######################################################################################
 
 
+#do_java_install() {
+
+	## To be implemented, 
+	## for now we are assuming, you've got JDK preinstalled as a prerequsuite
+#}
+
+
 
 do_java_check() {
 
-	which java || return 1  
+	if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then 
+		usage
+		exit 1
+	else
+		echoinfo "Checking for Java binaries"
+		which java 1>/dev/null || echoerror "Java no found"  
+		echoinfo "Java Home $(/usr/libexec/java_home)" || echoerror "Java Home not found"
+		echoinfo "$(java -fullversion 2>&1)"
+	fi
+}
 
-	## To be continued, assuming, you've got JDK preinstalled 
-	## and preset all required java vars
 
+
+
+do_set_java_env() {
+	ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1 || return 1
+	export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
+	export JAVA_HOME=$(/usr/libexec/java_home) || echoerror "Unable to set JAVA_HOME"
+	export PATH=$PATH:$EC2_HOME/bin
+	echoinfo "EC2 CLI variables set successfully"
 }
 
 
 do_install_ec2_cli() {
 
-	mkdir /tmp/svp && cd /tmp/svp || return 1
-	wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip
-	mkdir /usr/local/ec2 && unzip ec2-api-tools.zip -d /usr/local/ec2 || return 1 
-	do_set_java_env 
-
-	## To be continued, assuming, you've got JDK pre-installed to this box
-	## and preset all required java vars
-
-
+	if [ $(ls -1d ${EC2_BASE}/ec2-api-tools-* |wc -l) -gt 0 ] ; then 
+		echoinfo "EC2 tools already installed"
+	else
+		mkdir -p ${EC2_BASE} && cd ${EC2_BASE} || return 1
+		wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip || return 1 
+		unzip ec2-api-tools.zip -d $EC2_BASE 1>/dev/null || return 1 
+	fi
+	do_set_java_env || echowarn "Unable to set ec2 env variables"
 }
 
 do_create_ec2_key_pair() { 
 
-	if [ $(ec2-describe-keypairs svp | wc -l) -gt 0 ] ; then 
-		echoinfo $(ec2-describe-keypairs svp)
+	if [ $(ec2-describe-keypairs test | wc -l) -gt 0 ] ; then 
+		echoinfo $(ec2-describe-keypairs test)
 	else
-		ec2-create-keypair svp || echowarn "Unable to create keypair"
+		ec2-create-keypair test || echowarn "Unable to create keypair"
 	fi
 }
 
@@ -128,31 +154,44 @@ do_update_ec2_sec_group() {
 
 do_gen_init_script() { 
 
-echoinfo "Generating init script"
+#
+# For stable version of salt bootstrap script uncomment below line: 
+# export BOOTSTRAP_URL=https://bootstrap.saltstack.com
+# 
+# discovered bug in bootstrap script, which is fixed in dev version (ref https://github.com/saltstack/salt-bootstrap/issues/742) 
+# uncomment to use Development branch for a salt bootstrap script : 
+export BOOTSTRAP_URL="https://raw.githubusercontent.com/saltstack/salt-bootstrap/develop/bootstrap-salt.sh"
+
+echoinfo "Generating ec2-init.sh script, which will be executed by cloud-init"
+echoinfo "default log for a cloud init: /var/log/cloud-init-output.log"
+echoinfo "default log for a salt bootstrap script: /tmp/bootstrap-salt.log"  
+
 cat << EOF >ec2-init.sh
 #!/bin/sh
 yum -y install wget git 
-wget -O install_salt.sh https://bootstrap.saltstack.com || curl -L https://bootstrap.saltstack.com -o install_salt.sh
+wget ${BOOTSTRAP_URL} -O install_salt.sh  || curl -L ${BOOTSTRAP_URL} -o install_salt.sh 
 sh install_salt.sh
 echo "file_client: local" >/etc/salt/minion.d/masterless.conf
-mkdir -p /srv/salt && git clone https://${GIT_REPO}.git && mv webserver/salt/* /srv/salt/  
+echo "state_output: mixed" >> /etc/salt/minion.d/masterless.conf
+mkdir -p /srv/salt && git clone https://${GIT_REPO}.git && mv salt-elastic-aws/salt/* /srv/salt/  
 salt-call --local state.highstate -l debug 1>/tmp/highstaterun.log 2>&1
 EOF
 chmod +x ./ec2-init.sh
 }
 
+
 do_start_ec2_instance() { 
 	
 	if [ -f ec2-init.sh ] ; then 
 		echoinfo "Starting EC2 instance"
-		ec2-run-instances --key svp --instance-type t2.micro -f ec2-init.sh ami-0d4cfd66 || return 1 
+		ec2-run-instances --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID || return 1 
 		rm ./ec2-init.sh
 	else 
-		echowarn "Init file is missing, starting plain instance using key svp" 
-		ec2-run-instances --key svp --instance-type t2.micro ami-0d4cfd66 || return 1 
+		echowarn "Init file is missing, starting plain instance using keypair test" 
+		ec2-run-instances --key test --instance-type t2.micro ami-0d4cfd66 || return 1 
 		return 1  
 	fi
-	echoinfo "Allow some time for VM to Bootstrap"
+	echoinfo "Allow some time for VM to Bootstrap .."
 	sleep ${DEFAULT_SLEEP}
 	ec2-describe-instances
 }
@@ -166,9 +205,10 @@ do_start_ec2_instance() {
 ######################################################################################
 ######################################################################################
 
-
 detect_color_support
+do_java_check
+do_install_ec2_cli
 do_create_ec2_key_pair 
 do_update_ec2_sec_group
-do_gen_init_script || echoerror "unable to generate init script"
+do_gen_init_script || echoerror "unable to generate init script, check the logs"
 do_start_ec2_instance
