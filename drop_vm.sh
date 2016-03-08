@@ -102,14 +102,15 @@ do_set_java_env() {
 
 do_update_ec2_sec_group() { 
 
-#    ec2-revoke default -p -1 || echowarn "Unable to delete rule in default security group" 
-ec2-delete-group es || echowarn "Unable to delete security group"
+    echoinfo "Deleting es security group"
+    #    ec2-revoke default -p -1 || echowarn "Unable to delete rule in default security group" 
+    ec2-delete-group es || echowarn "Unable to delete security group"
     
 }
 
 do_drop_ec2_instance() { 
 
-	echoinfo "Terminating EC2 instance"
+	echoinfo "Terminating EC2 instance ${ID}"
 	ec2-terminate-instances ${ID} || return 1 
 	echoinfo "Allow some time for VM to terminate"
 	ec2-describe-instances ${ID}

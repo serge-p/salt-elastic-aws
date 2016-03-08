@@ -143,9 +143,15 @@ do_create_ec2_key_pair() {
 
 do_update_ec2_sec_group() { 
 
-	echoinfo "Updating default security group"
-	ec2-revoke default -p -1 1>/dev/null 2>&1
-	ec2-authorize default -p -1 || echowarn "Unable to create new security rule in a default group" 
+#	echoinfo "Updating default security group"
+#	ec2-revoke default -p -1 1>/dev/null 2>&1
+#	ec2-authorize default -p -1 
+	echoinfo "Creating AWS security group for Elasticsearch"
+	ec2-create-group es -d "security group for Elasticsearch" || echowarn "Unable to create new security group" 
+	ec2-revoke es -p -1 1>/dev/null 2>&1
+	ec2-authorize es -p 22  || echowarn "Unable to add a rule to ES security group"
+	ec2-authorize es -p 9200 --cidr 172.31.0.0/24  || echowarn "Unable to add a rule to ES security group"
+	ec2-authorize es -p 9300 --cidr  172.31.0.0/24 || echowarn "Unable to add a rule to ES security group"
 
 }
 
