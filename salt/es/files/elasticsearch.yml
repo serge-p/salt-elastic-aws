@@ -1,0 +1,4 @@
+# Elasticsearch configuration for {{ grains['fqdn'] }}
+
+cluster.name: testcluster
+node.name: "{{ grains['fqdn'] }}"
