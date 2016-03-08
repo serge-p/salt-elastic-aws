@@ -102,7 +102,8 @@ do_set_java_env() {
 
 do_update_ec2_sec_group() { 
 
-    ec2-revoke default -p -1 || echowarn "Unable to delete rule in default security group" 
+#    ec2-revoke default -p -1 || echowarn "Unable to delete rule in default security group" 
+ec2-delete-group es || echowarn "Unable to delete security group"
     
 }
 

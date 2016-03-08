@@ -13,8 +13,6 @@
 myname="deploy_vm.sh"
 DEFAULT_SLEEP=3
 GIT_REPO=github.com/serge-p/salt-elastic-aws
-# DOCUMENT_ROOT=/var/www/svp
-ELK_USER=elastic
 EC2_BASE=/tmp/ec2
 AMI_ID=ami-8fcee4e5
 
@@ -79,8 +77,6 @@ Usage :  ${myname}
 Bootstrap options:
     - salt masterless 
 ##    - shell 
-##    - vagrant
-##    - puppet
 
 EOT
 } 
@@ -150,6 +146,7 @@ do_update_ec2_sec_group() {
 	echoinfo "Updating default security group"
 	ec2-revoke default -p -1 1>/dev/null 2>&1
 	ec2-authorize default -p -1 || echowarn "Unable to create new security rule in a default group" 
+
 }
 
 do_gen_init_script() { 
@@ -184,11 +181,11 @@ do_start_ec2_instance() {
 	
 	if [ -f ec2-init.sh ] ; then 
 		echoinfo "Starting EC2 instance"
-		ec2-run-instances --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID || return 1 
+		ec2-run-instances --group es --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID || return 1 
 		rm ./ec2-init.sh
 	else 
 		echowarn "Init file is missing, starting plain instance using keypair test" 
-		ec2-run-instances --key test --instance-type t2.micro ami-0d4cfd66 || return 1 
+		ec2-run-instances --group es  --key test --instance-type t2.micro $AMI_ID || return 1 
 		return 1  
 	fi
 	echoinfo "Allow some time for VM to Bootstrap .."
