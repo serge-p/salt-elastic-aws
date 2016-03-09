@@ -95,6 +95,7 @@ EOT
 
 
 
+
 do_java_check() {
 
 	if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then 
@@ -109,15 +110,27 @@ do_java_check() {
 }
 
 
-
-
 do_set_java_env() {
-	ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1 || return 1
 	export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
 	export JAVA_HOME=$(/usr/libexec/java_home) || echoerror "Unable to set JAVA_HOME"
 	export PATH=$PATH:$EC2_HOME/bin
 	echoinfo "EC2 CLI variables set successfully"
 }
+
+
+do_aws_check() {
+
+	if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then 
+		usage
+		exit 1
+	else
+		echoinfo "Checking for AWS tools binaries"
+		which ec2-run-instances 1>/dev/null || which aws 1>/dev/null || echoerror "aws tools not found"  
+		echoinfo "Java Home $(/usr/libexec/java_home)" || env |grep JAVA_HOME || echoerror "Java Home not found"
+		echoinfo "$(java -fullversion 2>&1)"
+	fi
+}
+
 
 
 do_install_ec2_cli() {
@@ -150,6 +163,7 @@ do_update_ec2_sec_group() {
 	ec2-create-group es -d "security group for Elasticsearch" || echowarn "Unable to create new security group" 
 	ec2-revoke es -p -1 1>/dev/null 2>&1
 	ec2-authorize es -p 22  || echowarn "Unable to add a rule to ES security group"
+	ec2-authorize es -p 80  || echowarn "Unable to add a rule to ES security group"
 	ec2-authorize es -p 9200 --cidr 172.31.0.0/24  || echowarn "Unable to add a rule to ES security group"
 	ec2-authorize es -p 9300 --cidr  172.31.0.0/24 || echowarn "Unable to add a rule to ES security group"
 

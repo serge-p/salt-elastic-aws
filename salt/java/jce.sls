@@ -3,7 +3,7 @@
 {%- if java.jce_url is defined %}
 
 include:
-  - sun-java
+  - java
 
 unzip:
   pkg.installed

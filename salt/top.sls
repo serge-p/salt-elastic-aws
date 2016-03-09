@@ -1,5 +1,9 @@
 base:
   '*':
     - baselevel
-    - java
-    - es
+    - java.jce
+    - es.ca
+    - es.shield
+    - nginxproxy
+#    - healthcheck
+#    - addnode

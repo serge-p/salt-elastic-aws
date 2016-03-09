@@ -81,8 +81,9 @@ es_install:
         export ES_HEAP_SIZE={{ ES_HEAP_SIZE }}
 
 
+
 #############################################################
-# Healthcheck part 
+# Healthcheck part (plain)
 #############################################################
 
 

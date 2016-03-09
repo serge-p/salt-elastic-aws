@@ -23,10 +23,22 @@ unpack-jdk-tarball:
     - path: {{ java.java_real_home }}
     - priority: 30
 
-update java alternatives:
+{% for alt in ['java' , 'keytool', 'servertool'] %} 
+
+install {{ alt }} alternatives:
+  alternatives.install:
+    - name: {{ alt }}
+    - link: /usr/bin/{{ alt }}
+    - path: {{ java.java_real_home }}/bin/{{ alt }}
+    - priority: 18000
+
+update {{ alt }} alternatives:
   alternatives.set:
-    - name: java
-    - path: {{ java.java_real_home }}/bin/java
+    - name: {{ alt }}
+    - path: {{ java.java_real_home }}/bin/{{ alt }}
+
+
+{% endfor %}
 
 
 {%- endif %}
