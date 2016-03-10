@@ -11,7 +11,6 @@
 ######################################################################################
 
 
-myname="drop_vm.sh"
 DEFAULT_SLEEP=60
 EC2_BASE=/tmp/ec2
 
@@ -63,7 +62,7 @@ echowarn() {
 
 usage() {
     cat << EOT
-Usage :  ${myname} instance-id (optional)
+Usage :  $0 instance-id (optional)
 
 where instance-id is EC instance-id, for example i-e696e145
 
@@ -122,17 +121,13 @@ do_set_java_env() {
 
 do_drop_ec2_instance() { 
 
-
-    if [ "$#" -gt 0 ]; 
-        INSTANCE=$*
-        echoinfo $INSTANCE
-    else
-        then INSTANCES=$(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $2'})
-
+    if [ -z "$INSTANCES" ] ; then
+        INSTANCES=$(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $2'})
+    fi
     for ID in $INSTANCES
     do 
         echoinfo "Terminating EC2 instance ${ID}"
-    	ec2-terminate-instances ${ID} || return 1 
+    	ec2-terminate-instances ${ID} || return 1  
     	echoinfo "Allow some time for VM to terminate"
     done
 }
@@ -152,8 +147,11 @@ do_update_ec2_sec_group() {
 ######################################################################################
 ######################################################################################
 
+if [ "$#" -gt 1 ] ; then  INSTANCES=$* ; fi
+
 detect_color_support
-do_java_check
 do_set_java_env
+do_java_check
 do_drop_ec2_instance
+sleep 10
 do_update_ec2_sec_group

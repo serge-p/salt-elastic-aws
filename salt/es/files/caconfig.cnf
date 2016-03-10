@@ -49,10 +49,10 @@ commonName_max = 64
 # Default values for the above, for consistency and less typing.
 # Variable name Value
 #------------------------ ------------------------------
-0.organizationName_default = Elasticsearch Test Org 
-localityName_default = Amsterdam
-stateOrProvinceName_default = Amsterdam
-countryName_default = NL
+0.organizationName_default = SVP Consulting 
+localityName_default = Boston
+stateOrProvinceName_default = MA
+countryName_default = US
 emailAddress_default = cacerttest@YOUR.COMPANY.TLD
 [ v3_ca ]
 basicConstraints = CA:TRUE

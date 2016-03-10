@@ -10,8 +10,7 @@
 ######################################################################################
 
 
-myname="deploy_vm.sh"
-DEFAULT_SLEEP=3
+DEFAULT_SLEEP=20
 GIT_REPO=github.com/serge-p/salt-elastic-aws.git
 EC2_BASE=/tmp/ec2
 AMI_ID=ami-8fcee4e5
@@ -62,9 +61,9 @@ echowarn() {
 usage() {
 cat << EOT
 
-Usage :  ${myname} [number]
+Usage :  $0 [number]
 
-${myname} script takes number of nodes in the cluster as an optional input parameter
+$0 script takes number of nodes in the cluster as an optional input parameter
 
 pre-requisites: 
 
@@ -175,7 +174,7 @@ do_update_ec2_sec_group() {
 do_gen_init_script() { 
 
 
-if [ -z $i ] && [ $i -gt 1 ]; then NODE_ID=0${1} ; else NODE_ID=01 ; fi
+if [ ! -z $i ] && [ $i -gt 1 ]; then NODE_ID=0${i} ; else NODE_ID=01 ; fi
 
 #
 # discovered bug in bootstrap script, which is fixed in dev version (ref https://github.com/saltstack/salt-bootstrap/issues/742) 
@@ -205,8 +204,8 @@ sh install_salt.sh
 echo "file_client: local" >/etc/salt/minion.d/masterless.conf
 echo "state_output: mixed" >> /etc/salt/minion.d/masterless.conf
 
-mkdir -p /srv/salt && git clone -b master https://${GIT_REPO} /srv  
-salt-call --local state.highstate -l debug 1>/tmp/highstaterun.log 2>&1
+git clone -b master https://${GIT_REPO} /srv  
+salt-call --local state.highstate 1>/var/log/salt-highstate.log 2>&1
 EOF
 
 chmod +x ./ec2-init.sh
@@ -215,7 +214,7 @@ chmod +x ./ec2-init.sh
 
 do_start_ec2_instance() { 
 	
-	do_gen_init_script() || return 1  
+	do_gen_init_script || return 1  
 	if [ -f ec2-init.sh ] ; then 
 		echoinfo "Starting EC2 instance"
 		ec2-run-instances --group es --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID --iam-profile $IAM_ROLE || return 1 
@@ -230,8 +229,7 @@ do_start_ec2_instance() {
 
 do_check_ec2_instances() {
 
-echoinfo $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'})
-
+ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'}
 }
 ######################################################################################
 ######################################################################################
@@ -247,11 +245,12 @@ do_install_ec2_cli
 do_create_ec2_key_pair 
 do_update_ec2_sec_group
 
-if [ -z $1 ] && [ $1 -gt 0 ] && [ $1 -le 5 ]; then N=$1 ; else N=1 ; fi
-for i in 1 .. $N
+if [ ! -z $1 ] && [ $1 -gt 0 ] && [ $1 -le 5 ]; then N=$1 ; else N=1 ; fi
+for i in 1 .. $N 
 do 
-	do_start_ec2_instance
+echoinfo Building $i machine
+do_start_ec2_instance
 done
 
-sleep ${DEFAULT_SLEEP}
+#sleep ${DEFAULT_SLEEP}
 do_check_ec2_instances

@@ -44,15 +44,10 @@ useradd {{ admin }} -p {{ adminpass }} -r admin:
 #############################################################
 
 
-syskeygen && chown elasticsearch /etc/elasticsearch/shield/system_key:
+/usr/share/elasticsearch/bin/shield/syskeygen && chown elasticsearch /etc/elasticsearch/shield/system_key:
   cmd.run: 
     - cwd: /usr/share/elasticsearch/bin/shield
     - creates: /etc/elasticsearch/shield/system_key
-
-
-
-# SSL/TLS    
-#############################################################
 
 
 
@@ -62,10 +57,8 @@ syskeygen && chown elasticsearch /etc/elasticsearch/shield/system_key:
 
 
 
-#
-#keytool -importcert -keystore truststore.jks -file /etc/ssl/ca.crt -storepass {{ storepass }} -noprompt -trustcacerts:
-#
-keytool -importcert -keystore {{ hostname }}.jks -file /etc/ssl/ca.crt -alias my_ca -storepass {{ storepass }} -noprompt -trustcacerts:
+
+keytool -importcert -keystore {{ hostname }}.jks -file ca/certs/cacert.pem -alias my_ca -storepass {{ storepass }} -noprompt -trustcacerts:
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
     - creates: /etc/elasticsearch/shield/{{ hostname }}.jks

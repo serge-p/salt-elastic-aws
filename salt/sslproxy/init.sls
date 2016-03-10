@@ -12,8 +12,8 @@ nginx_install:
 
 /etc/nginx/nginx.conf:
   file.managed:
-    - source: salt://nginxproxy/files/nginx.conf
+    - source: salt://sslproxy/files/nginx.conf
 
 /etc/nginx/conf.d/ssl.conf:
   file.managed:
-    - source: salt://nginxproxy/files/ssl.conf
+    - source: salt://sslproxy/files/ssl.conf
