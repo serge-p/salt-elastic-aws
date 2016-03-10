@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Example Header: deploy_vm.sh,v 0.2 2016/03/07 svp Exp $
+# $Header: deploy_vm.sh,v 0.2 2016/03/07 svp Exp $
 #
 ######################################################################################
 ######################################################################################
@@ -12,16 +12,10 @@
 
 myname="deploy_vm.sh"
 DEFAULT_SLEEP=3
-GIT_REPO=github.com/serge-p/salt-elastic-aws
+GIT_REPO=github.com/serge-p/salt-elastic-aws.git
 EC2_BASE=/tmp/ec2
 AMI_ID=ami-8fcee4e5
-
-
-#
-# export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
-# export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
-#
-
+IAM_ROLE=es-role
 
 
 ######################################################################################
@@ -63,20 +57,39 @@ echowarn() {
 
 ######################################################################################
 
+
+
 usage() {
 cat << EOT
 
-set your AWS environment variables first as following:
+Usage :  ${myname} [number]
+
+${myname} script takes number of nodes in the cluster as an optional input parameter
+
+pre-requisites: 
+
+1. before running this script. export AWS environment variables as following:
 
 export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
 export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX 
 
-Usage :  ${myname}
+2. for ec2 auto-discovery, we need to create a new role in IAM from AWS console with name $IAM_ROLE 
+and alos following policy 
 
-
-Bootstrap options:
-    - salt masterless 
-##    - shell 
+{
+    "Statement": [
+        {
+            "Action": [
+                "ec2:DescribeInstances"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "*"
+            ]
+        }
+    ],
+    "Version": "2012-10-17"
+}
 
 EOT
 } 
@@ -85,14 +98,6 @@ EOT
 # Functions lib
 ######################################################################################
 ######################################################################################
-
-
-#do_java_install() {
-
-	## To be implemented, 
-	## for now we are assuming, you've got JDK preinstalled as a prerequsuite
-#}
-
 
 
 
@@ -161,57 +166,73 @@ do_update_ec2_sec_group() {
 	ec2-create-group es -d "security group for Elasticsearch" || echowarn "Unable to create new security group" 
 	ec2-revoke es -p -1 1>/dev/null 2>&1
 	ec2-authorize es -p 22  || echowarn "Unable to add a rule to ES security group"
-	ec2-authorize es -p 80  || echowarn "Unable to add a rule to ES security group"
-	ec2-authorize es -p 9200 --cidr 172.31.0.0/24  || echowarn "Unable to add a rule to ES security group"
-	ec2-authorize es -p 9300 --cidr  172.31.0.0/24 || echowarn "Unable to add a rule to ES security group"
+	ec2-authorize es -p 443  || echowarn "Unable to add a rule to ES security group"
+#	ec2-authorize es -p 9200 --cidr 172.31.0.0/24  || echowarn "Unable to add a rule to ES security group"
+#	ec2-authorize es -p 9300 --cidr  172.31.0.0/24 || echowarn "Unable to add a rule to ES security group"
 
 }
 
 do_gen_init_script() { 
 
+
+if [ -z $i ] && [ $i -gt 1 ]; then NODE_ID=0${1} ; else NODE_ID=01 ; fi
+
 #
-# For stable version of salt bootstrap script uncomment below line: 
-# export BOOTSTRAP_URL=https://bootstrap.saltstack.com
-# 
 # discovered bug in bootstrap script, which is fixed in dev version (ref https://github.com/saltstack/salt-bootstrap/issues/742) 
-# uncomment to use Development branch for a salt bootstrap script : 
+# uncomment to use Development branch for a salt bootstrap script :
+#
 export BOOTSTRAP_URL="https://raw.githubusercontent.com/saltstack/salt-bootstrap/develop/bootstrap-salt.sh"
 
-echoinfo "Generating ec2-init.sh script, which will be executed by cloud-init"
-echoinfo "default log for a cloud init: /var/log/cloud-init-output.log"
-echoinfo "default log for a salt bootstrap script: /tmp/bootstrap-salt.log"  
+# to use stable version of salt bootstrap script uncomment below line: 
+# export BOOTSTRAP_URL=https://bootstrap.saltstack.com
+# 
+
+echoinfo "generating ec2 cloud init script"
+echoinfo "cloud init log: /var/log/cloud-init-output.log"
+echoinfo "salt bootstrap log: /tmp/bootstrap-salt.log"  
 
 cat << EOF >ec2-init.sh
+
 #!/bin/sh
+
+echo esnode-${NODE_ID} > /etc/hostname && hostname -F /etc/hostname
+
 yum -y install wget git 
-wget ${BOOTSTRAP_URL} -O install_salt.sh  || curl -L ${BOOTSTRAP_URL} -o install_salt.sh 
+
+wget ${BOOTSTRAP_URL} -O install_salt.sh || curl -L ${BOOTSTRAP_URL} -o install_salt.sh 
 sh install_salt.sh
+
 echo "file_client: local" >/etc/salt/minion.d/masterless.conf
 echo "state_output: mixed" >> /etc/salt/minion.d/masterless.conf
-mkdir -p /srv/salt && git clone https://${GIT_REPO}.git && mv salt-elastic-aws/salt/* /srv/salt/  
+
+mkdir -p /srv/salt && git clone -b master https://${GIT_REPO} /srv  
 salt-call --local state.highstate -l debug 1>/tmp/highstaterun.log 2>&1
 EOF
+
 chmod +x ./ec2-init.sh
 }
 
 
 do_start_ec2_instance() { 
 	
+	do_gen_init_script() || return 1  
 	if [ -f ec2-init.sh ] ; then 
 		echoinfo "Starting EC2 instance"
-		ec2-run-instances --group es --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID || return 1 
+		ec2-run-instances --group es --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID --iam-profile $IAM_ROLE || return 1 
 		rm ./ec2-init.sh
 	else 
-		echowarn "Init file is missing, starting plain instance using keypair test" 
-		ec2-run-instances --group es  --key test --instance-type t2.micro $AMI_ID || return 1 
+		echoerror "Something went wrong Init file is missing" 
 		return 1  
 	fi
 	echoinfo "Allow some time for VM to Bootstrap .."
-	sleep ${DEFAULT_SLEEP}
-	ec2-describe-instances
+
 }
 
+do_check_ec2_instances() {
 
+echoinfo $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'})
+
+}
 ######################################################################################
 ######################################################################################
 #
@@ -220,9 +241,17 @@ do_start_ec2_instance() {
 ######################################################################################
 ######################################################################################
 
+
 detect_color_support
 do_install_ec2_cli
 do_create_ec2_key_pair 
 do_update_ec2_sec_group
-do_gen_init_script || echoerror "unable to generate init script, check the logs"
-do_start_ec2_instance
+
+if [ -z $1 ] && [ $1 -gt 0 ] && [ $1 -le 5 ]; then N=$1 ; else N=1 ; fi
+for i in 1 .. $N
+do 
+	do_start_ec2_instance
+done
+
+sleep ${DEFAULT_SLEEP}
+do_check_ec2_instances

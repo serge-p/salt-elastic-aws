@@ -6,20 +6,16 @@
 
 Shell script to deploy a new Instance in AWS EC2 cloud, using ec2 cli tools  
 
+prereqs: 
 
-dependencies: 
-
-
-1. Install java on the machine before running the script 
+1. Install java (and optionally aws cli tools) on test machine before running the script 
 2. create authentication key-pair to access AWS console through API and set 2 following environment variables: 
-
 
 
 ```shell
  export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
  export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
 ```
-
 
 
 ### deploy_vm.sh main logic: 
@@ -46,32 +42,51 @@ dependencies:
 
 ### salt logic (basic part): 
 
-
+~~~
 * install base OS packages 
-* install oracle java 
-* install elasticsearch from a custom RPM repo 
+* install oracle java and jce 
+* install elasticsearch from custom RPM repo 
 * perform a basic healthcheck 
-
+~~~
 
 
 ### salt logic (security part): 
 
-* install shield plugin,   
+~~~
+* install plugins (shield)   
 * enable authentication (create admin user, enable shield audit for messaging)  
-* enable SSL/TLS (create CA, generate cerificates)
+* enable SSL/TLS (create CA, generate and sign certificates)
+* configure nginx as a proxy for search requests   
+~~~
+
+
+
+### clustering part 
+
+~~~
+* provision one more node into the cluster
 * advanced healthcheck 
+~~~
 
 
 
-### orchestration (clustering part) 
+### healthcheck 
 
-* configure salt master, salt cloud, salt reactor on a first node 
-* provision 2 more nodes into the cluster
-* advanced healthcheck 
+~~~
+* navigate in your browser to http://$PUBLICIP/_cat/nodes?v
+* login as esadmin:test123 
+~~~
+
+
+```
+host      ip        heap.percent ram.percent load node.role master name                          
+127.0.0.1 127.0.0.1            5          53 0.00 d         *      ip-172-31-12-104.ec2.internal 
+```
 
 
 
 *** 
+
 
 
 ### drop_vm.sh   
@@ -84,5 +99,5 @@ dependencies:
 #### references:
 
 
-[ES shield settings](https://www.elastic.co/guide/en/shield/current/ref-shield-settings.html#ref-ssl-tls-settings)
+[ES shield settings](https://www.elastic.co/guide/en/shield/current/ref-shield-settings.html#ref-ssl-tls-settings
 

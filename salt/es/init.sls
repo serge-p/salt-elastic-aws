@@ -2,7 +2,7 @@
 {% set ES_HEAP_SIZE = (salt['grains.get']('mem_total')/2)|round|int|string + 'm' %}
 
 #############################################################
-# Prereqs 
+# OS prereqs 
 # https://www.elastic.co/guide/en/elasticsearch/reference/current/setup-configuration.html
 #############################################################
 
@@ -101,5 +101,5 @@ es test connection on {{ port }}:
 curl localhost:9200/_nodes/stats/process?pretty:
   cmd.run: 
     - use_vt: true
-
+    - unless: ls -ald /etc/elasticsearch/shield
 

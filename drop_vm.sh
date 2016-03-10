@@ -63,18 +63,23 @@ echowarn() {
 
 usage() {
     cat << EOT
- Usage :  ${myname} instance-ID 
+Usage :  ${myname} instance-id (optional)
 
-  Example instance-ID:	i-e696e145
+where instance-id is EC instance-id, for example i-e696e145
+
+pre-requisites: 
+
+before running this script, 
+export AWS environment variables as following:
+
+export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
+export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX 
+
+
+
 EOT
 } 
 
-if [ "$#" -ne 1 ]; then
-    usage
-    exit 1
-fi
-
-export ID=$1
 
 # Functions lib
 ######################################################################################
@@ -82,38 +87,61 @@ export ID=$1
 
 do_java_check() {
 
-    echoinfo "Checking for Java binaries"
-    which java 1>/dev/null || echoerror "Java no found"  
-    echoinfo "Java Home $(/usr/libexec/java_home)" || echoerror "Java Home not found"
-    echoinfo "$(java -fullversion 2>&1)"
+        if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then
+                usage
+                exit 1
+        else
+                echoinfo "Checking for Java"
+                which java 1>/dev/null || echoerror "Java not found"
+                $(env | grep JAVA_HOME 1>/dev/null) || echoerror "JAVA_HOME not found"
+                echoinfo "$(java -fullversion 2>&1) found at $JAVA_HOME"
+        fi
+}
+
+
+do_set_java_env() {
+        if ! [ $(which ec2-run-instances) ] ; then
+                export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
+                export PATH=$PATH:$EC2_HOME/bin
+        fi
+        if [ -z "${JAVA_HOME}" ]; then
+            if [ -d /usr/java/latest ]; then export JAVA_HOME=/usr/java/latest
+            elif [ -d /usr/lib/jvm/java ]; then export JAVA_HOME=/usr/lib/jvm/java
+            elif [ -d /usr/lib/jvm/jre ]; then export JAVA_HOME=/usr/lib/jvm/jre
+            elif [ -f /usr/libexec/java_home ]; then export JAVA_HOME=$(/usr/libexec/java_home)
+            elif [ -d /usr/lib/java ]; then export JAVA_HOME=/usr/lib/java
+            else echoerror "Unable to set JAVA_HOME" && return 1
+            fi
+        else
+        echoinfo $JAVA_HOME
+        fi
+        echoinfo "java env set successfully"
 }
 
 
 
-
-do_set_java_env() {
-    ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1 || return 1
-    export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
-    export JAVA_HOME=$(/usr/libexec/java_home) || echoerror "Unable to set JAVA_HOME"
-    export PATH=$PATH:$EC2_HOME/bin
- }
+do_drop_ec2_instance() { 
 
 
+    if [ "$#" -gt 0 ]; 
+        INSTANCE=$*
+        echoinfo $INSTANCE
+    else
+        then INSTANCES=$(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $2'})
+
+    for ID in $INSTANCES
+    do 
+        echoinfo "Terminating EC2 instance ${ID}"
+    	ec2-terminate-instances ${ID} || return 1 
+    	echoinfo "Allow some time for VM to terminate"
+    done
+}
 
 do_update_ec2_sec_group() { 
 
     echoinfo "Deleting es security group"
-    #    ec2-revoke default -p -1 || echowarn "Unable to delete rule in default security group" 
-    ec2-delete-group es || echowarn "Unable to delete security group"
+    ec2-delete-group es || echowarn "Unable to delete security group es"
     
-}
-
-do_drop_ec2_instance() { 
-
-	echoinfo "Terminating EC2 instance ${ID}"
-	ec2-terminate-instances ${ID} || return 1 
-	echoinfo "Allow some time for VM to terminate"
-	ec2-describe-instances ${ID}
 }
 
 ######################################################################################
@@ -127,5 +155,5 @@ do_drop_ec2_instance() {
 detect_color_support
 do_java_check
 do_set_java_env
-do_update_ec2_sec_group
 do_drop_ec2_instance
+do_update_ec2_sec_group

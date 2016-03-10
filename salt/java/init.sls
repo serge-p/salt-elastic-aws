@@ -22,6 +22,10 @@ unpack-jdk-tarball:
     - link: {{ java.java_home }}
     - path: {{ java.java_real_home }}
     - priority: 30
+  file.symlink:
+    - name: {{ java.java_home }}
+    - target: /etc/alternatives/java-home-link
+    - force: True 
 
 {% for alt in ['java' , 'keytool', 'servertool'] %} 
 
@@ -37,8 +41,9 @@ update {{ alt }} alternatives:
     - name: {{ alt }}
     - path: {{ java.java_real_home }}/bin/{{ alt }}
 
-
 {% endfor %}
 
+include: 
+  - java.env
 
 {%- endif %}

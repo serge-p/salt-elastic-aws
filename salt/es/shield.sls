@@ -1,13 +1,9 @@
 {% set this       = 'shield' %}
+{% set hostname   = grains['fqdn'] %}
 {% set plugins    = [ 'license', 'shield' , 'cloud-aws' ] %}
 {% set admin      = 'esadmin' %}
 {% set adminpass  = 'test123' %}
 {% set storepass  = 'supersecure' %}
-{% set hostname   = grains['fqdn'] %}
-{% for ifacename, interface in salt['network.interfaces']().iteritems() if interface.up == True and ifacename != 'lo' %}
-{% set ip = interface.inet[0]['address'] %}
-{% endfor %}
-
 
 include: 
   - es
@@ -69,33 +65,33 @@ syskeygen && chown elasticsearch /etc/elasticsearch/shield/system_key:
 #
 #keytool -importcert -keystore truststore.jks -file /etc/ssl/ca.crt -storepass {{ storepass }} -noprompt -trustcacerts:
 #
-keytool -importcert -keystore node01.jks -file /etc/ssl/ca.crt -alias my_ca -storepass {{ storepass }} -noprompt -trustcacerts:
+keytool -importcert -keystore {{ hostname }}.jks -file /etc/ssl/ca.crt -alias my_ca -storepass {{ storepass }} -noprompt -trustcacerts:
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
-    - creates: /etc/elasticsearch/shield/node01.jks
+    - creates: /etc/elasticsearch/shield/{{ hostname }}.jks
 
 
-keytool -genkey -alias node01 -keystore node01.jks -keyalg RSA -keysize 2048 -validity 3650 -noprompt -storepass {{ storepass }}:
+keytool -genkey -alias {{ hostname }} -keystore {{ hostname }}.jks -keyalg RSA -keysize 2048 -validity 3650 -noprompt -storepass {{ storepass }} -keypass {{ storepass }} -dname "CN=testcluster, OU=test, O=SVP Consulting, L=Boston, ST=MA, C=US" :
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
-    - unless: keytool -list -keystore node01.jks -storepass {{ storepass }} |grep node01
+    - unless: keytool -list -keystore {{ hostname }}.jks -storepass {{ storepass }} |grep {{ hostname }}
 
-keytool -certreq -alias node01 -keystore node01.jks -file node01.csr -noprompt -storepass {{ storepass }} -keyalg rsa:
+keytool -certreq -alias {{ hostname }} -keystore {{ hostname }}.jks -file {{ hostname }}.csr -noprompt -storepass {{ storepass }} -keyalg rsa:
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
-    - creates: /etc/elasticsearch/shield/node01.csr
+    - creates: /etc/elasticsearch/shield/{{ hostname }}.csr
 
 
-openssl ca -in node01.csr -notext -out node01-signed.crt -config ca/caconfig.cnf -extensions v3_req -batch:
+openssl ca -in {{ hostname }}.csr -notext -out {{ hostname }}-signed.crt -config ca/caconfig.cnf -extensions v3_req -batch:
   cmd.run:
     - cwd: /etc/elasticsearch/shield
-    - creates: /etc/elasticsearch/shield/node01-signed.crt
+    - creates: /etc/elasticsearch/shield/{{ hostname }}-signed.crt
 
 
-keytool -importcert -keystore node01.jks -file node01-signed.crt -alias server -storepass {{ storepass }} -noprompt:
+keytool -importcert -keystore {{ hostname }}.jks -file {{ hostname }}-signed.crt -alias server -storepass {{ storepass }} -noprompt:
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
-    - unless: keytool -list -keystore node01.jks -storepass {{ storepass }} |grep node01 
+#    - unless: keytool -list -keystore {{ hostname }}.jks -storepass {{ storepass }} |grep {{ hostname }} 
 
 
 
@@ -103,18 +99,16 @@ keytool -importcert -keystore node01.jks -file node01-signed.crt -alias server -
 #############################################################
 
 
-/etc/elasticsearch/elasticsearch.yml:
+/etc/elasticsearch/elasticsearch.yml shield configuration:
   file.blockreplace:
-    - marker_start: "########## START managed {{ this }} -DO-NOT-EDIT-"
+    - name: /etc/elasticsearch/elasticsearch.yml
+    - marker_start: "########## START managed zone {{ this }} -DO-NOT-EDIT-"
     - marker_end: "########## END managed zone {{ this }} --"
     - append_if_not_found: True
     - show_changes: True
     - content: | 
         shield.audit.enabled: true
-        http.cors.allow-origin : "*"
-        http.cors.allow-methods : OPTIONS, HEAD, GET, POST, PUT, DELETE
-        http.cors.allow-headers : X-Requested-With,X-Auth-Token,Content-Type, Content-Length
-        shield.ssl.keystore.path:          /etc/elasticsearch/shield/node01.jks 
+        shield.ssl.keystore.path:          /etc/elasticsearch/shield/{{ hostname }}.jks 
         shield.ssl.keystore.password:      {{ storepass }}
         shield.ssl.keystore.key_password:  {{ storepass }}
         shield.transport.ssl: true
@@ -122,9 +116,20 @@ keytool -importcert -keystore node01.jks -file node01-signed.crt -alias server -
         shield.ssl.hostname_verification: false
         shield.ssl.hostname_verification.resolve_name: false
 
+# Restart service   
+#############################################################
+
+
+restart elasticsearch: 
+  service.running:
+    - name: elasticsearch
+    - enable: True
+    - watch: 
+      - file: /etc/elasticsearch/elasticsearch.yml
+
 
 #############################################################
-# Healthcheck part (now secured)  
+# Healthcheck part TODO  
 #############################################################
 
 
