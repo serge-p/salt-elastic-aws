@@ -98,52 +98,50 @@ EOT
 
 do_java_check() {
 
-	if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then 
-		usage
-		exit 1
-	else
-		echoinfo "Checking for Java binaries"
-		which java 1>/dev/null || echoerror "Java no found"  
-		echoinfo "Java Home $(/usr/libexec/java_home)" || echoerror "Java Home not found"
-		echoinfo "$(java -fullversion 2>&1)"
-	fi
+        if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then
+                usage
+                exit 1
+        else
+                echoinfo "Checking for Java"
+                which java 1>/dev/null || echoerror "Java not found"
+                $(env | grep JAVA_HOME 1>/dev/null) || echoerror "JAVA_HOME not found"
+                echoinfo "$(java -fullversion 2>&1) found at $JAVA_HOME"
+        fi
 }
 
 
 do_set_java_env() {
-	export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
-	export JAVA_HOME=$(/usr/libexec/java_home) || echoerror "Unable to set JAVA_HOME"
-	export PATH=$PATH:$EC2_HOME/bin
-	echoinfo "EC2 CLI variables set successfully"
+        if ! [ $(which ec2-run-instances) ] ; then
+                export EC2_HOME=$(ls -1d ${EC2_BASE}/ec2-api-tools-* |tail -1) || echoerror "Unable to set EC2_HOME"
+                export PATH=$PATH:$EC2_HOME/bin
+        fi
+        if [ -z "${JAVA_HOME}" ]; then
+            if [ -d /usr/java/latest ]; then export JAVA_HOME=/usr/java/latest
+            elif [ -d /usr/lib/jvm/java ]; then export JAVA_HOME=/usr/lib/jvm/java
+            elif [ -d /usr/lib/jvm/jre ]; then export JAVA_HOME=/usr/lib/jvm/jre
+            elif [ -f /usr/libexec/java_home ]; then export JAVA_HOME=$(/usr/libexec/java_home)
+            elif [ -d /usr/lib/java ]; then export JAVA_HOME=/usr/lib/java
+            else echoerror "Unable to set JAVA_HOME" && return 1
+            fi
+        else
+        echoinfo $JAVA_HOME
+        fi
+        echoinfo "java env set successfully"
 }
-
-
-do_aws_check() {
-
-	if [ -z ${AWS_ACCESS_KEY} ] || [ -z ${AWS_SECRET_KEY} ]; then 
-		usage
-		exit 1
-	else
-		echoinfo "Checking for AWS tools binaries"
-		which ec2-run-instances 1>/dev/null || which aws 1>/dev/null || echoerror "aws tools not found"  
-		echoinfo "Java Home $(/usr/libexec/java_home)" || env |grep JAVA_HOME || echoerror "Java Home not found"
-		echoinfo "$(java -fullversion 2>&1)"
-	fi
-}
-
-
 
 do_install_ec2_cli() {
 
-	if [ $(ls -1d ${EC2_BASE}/ec2-api-tools-* |wc -l) -gt 0 ] ; then 
-		echoinfo "EC2 tools already installed"
-	else
-		mkdir -p ${EC2_BASE} && cd ${EC2_BASE} || return 1
-		wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip || return 1 
-		unzip ec2-api-tools.zip -d $EC2_BASE 1>/dev/null || return 1 
-	fi
-	do_set_java_env || echowarn "Unable to set ec2 env variables"
+        if [ $(which ec2-run-instances) ] || [ $(ls -1d ${EC2_BASE}/ec2-api-tools-* |wc -l) -gt 0 ] ; then
+                echoinfo "EC2 tools already installed"
+        else
+                mkdir -p ${EC2_BASE} && cd ${EC2_BASE} || return 1
+                wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip || return 1
+                unzip ec2-api-tools.zip -d $EC2_BASE 1>/dev/null || return 1
+        fi
+        do_set_java_env || echowarn "Unable to set ec2 env variables"
+        do_java_check
 }
+
 
 do_create_ec2_key_pair() { 
 
@@ -223,7 +221,6 @@ do_start_ec2_instance() {
 ######################################################################################
 
 detect_color_support
-do_java_check
 do_install_ec2_cli
 do_create_ec2_key_pair 
 do_update_ec2_sec_group
