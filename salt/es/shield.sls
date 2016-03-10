@@ -38,7 +38,7 @@ bin/plugin install {{ plugin }}:
 esusers useradd {{ admin }} -p {{ adminpass }} -r admin:
   cmd.run:
     - cwd: /usr/share/elasticsearch/bin/shield
-    - creates: /etc/elasticsearch/shield/users
+    - unless: cat /etc/elasticsearch/shield/users |grep {{ admin }}
 
 # Message authentication 
 #############################################################
