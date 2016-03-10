@@ -35,7 +35,7 @@ bin/plugin install {{ plugin }}:
 #############################################################
 
 
-useradd {{ admin }} -p {{ adminpass }} -r admin:
+esusers useradd {{ admin }} -p {{ adminpass }} -r admin:
   cmd.run:
     - cwd: /usr/share/elasticsearch/bin/shield
     - creates: /etc/elasticsearch/shield/users
@@ -58,7 +58,7 @@ useradd {{ admin }} -p {{ adminpass }} -r admin:
 
 
 
-keytool -importcert -keystore {{ hostname }}.jks -file ca/certs/cacert.pem -alias my_ca -storepass {{ storepass }} -noprompt -trustcacerts:
+keytool -importcert -keystore {{ hostname }}.jks -file ca/certs/cacert.pem -alias {{ hostname }}-ca -storepass {{ storepass }} -noprompt -trustcacerts:
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
     - creates: /etc/elasticsearch/shield/{{ hostname }}.jks
@@ -81,10 +81,10 @@ openssl ca -in {{ hostname }}.csr -notext -out {{ hostname }}-signed.crt -config
     - creates: /etc/elasticsearch/shield/{{ hostname }}-signed.crt
 
 
-keytool -importcert -keystore {{ hostname }}.jks -file {{ hostname }}-signed.crt -alias server -storepass {{ storepass }} -noprompt:
+keytool -importcert -keystore {{ hostname }}.jks -file {{ hostname }}-signed.crt -alias {{ hostname }} -storepass {{ storepass }} -noprompt:
   cmd.run: 
     - cwd: /etc/elasticsearch/shield
-#    - unless: keytool -list -keystore {{ hostname }}.jks -storepass {{ storepass }} |grep {{ hostname }} 
+    - unless: keytool -list -keystore {{ hostname }}.jks -storepass {{ storepass }} |grep {{ hostname }} 
 
 
 
