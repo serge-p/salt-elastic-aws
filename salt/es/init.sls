@@ -48,17 +48,6 @@ es_yum_repo:
 es_install:
   pkg.installed:
     - name: elasticsearch
-  service:
-    - running 
-    - name: elasticsearch
-    - enable: True
-    - require:
-        - pkg: elasticsearch
-        - file: /etc/elasticsearch/elasticsearch.yml
-        - file: /etc/sysconfig/elasticsearch 
-    - watch: 
-        - file: /etc/elasticsearch/elasticsearch.yml
-        - file: /etc/sysconfig/elasticsearch 
 
 
 #############################################################
@@ -85,6 +74,18 @@ es_install:
         export ES_HEAP_SIZE={{ ES_HEAP_SIZE }}
 
 
+restart elasticsearch: 
+  service.running: 
+    - name: elasticsearch
+    - enable: True
+    - require:
+        - pkg: elasticsearch
+        - file: /etc/elasticsearch/elasticsearch.yml
+        - file: /etc/sysconfig/elasticsearch 
+    - watch: 
+        - file: /etc/elasticsearch/elasticsearch.yml
+        - file: /etc/sysconfig/elasticsearch 
+
 
 #############################################################
 # Healthcheck part (plain)
@@ -95,7 +96,6 @@ es_install:
 es test connection on {{ port }}:
   module.run: 
     - name: network.connect
-#    - host: {{ salt['network.ipaddrs']()|join }}
     - host: 127.0.0.1
     - port: {{ port }}
     - proto: tcp
