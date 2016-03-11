@@ -1,21 +1,29 @@
-# Build Secure Cloud ElasticSearch Instance Exercise
+# Building Secure Cloud ElasticSearch Instance Exercise
 
 
 ## Overview: 
 
-Here we will build a secure elasticsearh node (or a cluster) in AWS EC2 cloud
+Building secure elasticsearh node, a set of nodes or a cluster in AWS EC2 cloud
 additionally putting it behnd nginx ssl proxy, listening on port 443   
-and creating custom security EC2 group 
+and creating custom security EC2 group as a firewall
 
 Will use AWS Cloud Plugin for automatic nodes discovery 
 and trial version of ES Shield Plugin for:
-
 
 * role-based authentication for https clients  
 * audit for a connected clients
 * encrypted communicaton between the nodes in the cluster 
 * encrypted communicaton for external https clients 
 
+
+
+##  example run: 
+
+```shell
+git clone https://github.com/serge-p/salt-elastic-aws 
+cd salt-elastic-aws
+./deploy_vm.sh 2 
+```
 
 
 ## healthcheck:     
@@ -81,7 +89,10 @@ sudo su -
 
 ### deploy_vm.sh
 
-Shell script to deploy a new Instance in AWS EC2 cloud, using ec2 cli tools  
+Shell script will deploy a given number of Secured Elasticsearch Instances in AWS EC2 cloud, using ec2 cli tools  
+
+script takes a number of instances as an argument
+
 
 prereqs: 
 
@@ -94,8 +105,7 @@ prereqs:
  export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
 ```
 
-3. for ec2 auto-discovery, we need to create a new role in IAM from AWS console with name $IAM_ROLE 
-and alos following policy 
+3. for ec2 auto-discovery, we need to create a new role in IAM from AWS console with name `es-role`  and associate it with following IAM policy:
 
 
 ```json
