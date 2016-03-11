@@ -229,13 +229,15 @@ do_start_ec2_instance() {
 
 do_check_ec2_instances() {
 
-while [ -z "$(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE)" ]
+while [ -z $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE) ]
 do 
 sleep ${DEFAULT_SLEEP}
+done
 echoinfo "$(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'})"
-done 
 
 }
+
+
 ######################################################################################
 ######################################################################################
 #
@@ -257,5 +259,6 @@ do
 	echoinfo "Starting instance $i"
 	do_start_ec2_instance
 done
+
 sleep ${DEFAULT_SLEEP}
 do_check_ec2_instances

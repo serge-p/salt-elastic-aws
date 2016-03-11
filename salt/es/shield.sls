@@ -101,6 +101,7 @@ keytool -importcert -keystore {{ hostname }}.jks -file {{ hostname }}-signed.crt
     - content: | 
         discovery.type: ec2
         discovery.ec2.groups: es
+        network.host: _ec2_
         node.data: true
         node.master: true
         shield.audit.enabled: true

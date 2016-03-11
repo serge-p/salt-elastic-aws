@@ -118,6 +118,13 @@ do_set_java_env() {
 }
 
 
+do_update_ec2_sec_group() { 
+
+    echoinfo "Deleting es security group"
+    ec2-delete-group es || echowarn "Unable to delete security group es"
+    
+}
+
 
 do_drop_ec2_instance() { 
 
@@ -132,11 +139,17 @@ do_drop_ec2_instance() {
     done
 }
 
-do_update_ec2_sec_group() { 
 
-    echoinfo "Deleting es security group"
-    ec2-delete-group es || echowarn "Unable to delete security group es"
-    
+do_check_ec2_instances() {
+
+echoinfo "$(ec2-describe-instances  --filter instance.group-name=es  |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'})"
+
+while [ -n $(ec2-describe-instances  --filter instance.group-name=es |grep INSTANCE) ]
+do 
+sleep ${DEFAULT_SLEEP}
+done
+
+
 }
 
 ######################################################################################
