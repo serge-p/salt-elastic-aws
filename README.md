@@ -17,11 +17,15 @@ and trial version of ES Shield Plugin for:
 
 
 
-##  example run: 
+## example usage: 
 
 ```shell
 git clone https://github.com/serge-p/salt-elastic-aws 
 cd salt-elastic-aws
+
+export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
+export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
+
 ./deploy_vm.sh 2 
 ```
 
