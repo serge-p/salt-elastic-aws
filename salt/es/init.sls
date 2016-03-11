@@ -74,7 +74,7 @@ es_install:
         export ES_HEAP_SIZE={{ ES_HEAP_SIZE }}
 
 
-restart elasticsearch: 
+start elasticsearch: 
   service.running: 
     - name: elasticsearch
     - enable: True

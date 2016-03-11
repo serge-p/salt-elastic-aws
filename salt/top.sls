@@ -4,6 +4,6 @@ base:
     - java
     - java.jce
     - es
-#    - es.ca
-#    - es.shield
-#    - sslproxy
+    - es.ca
+    - es.shield
+    - sslproxy

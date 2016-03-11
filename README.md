@@ -1,6 +1,22 @@
 # Build a Secure Cloud ElasticSearch Instance Exercise
 
 
+script will build a new elasticsearh cluster in AWS EC2 cloud
+putting backend nodes behind nginx ssl proxy  
+
+will be using shield plugin in this example for:
+
+* role-based authentication 
+* SSL/TLS encrypted communicaton between the nodes in the cluster 
+
+
+~~~
+To check cluster configuration you navigate in your browser 
+to http://$PUBLIC_IP/_cat/nodes?v
+and login with esadmin:test123 
+~~~
+
+
 
 ### deploy_vm.sh
 
@@ -16,6 +32,7 @@ prereqs:
  export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
  export AWS_SECRET_KEY=XXXXXXXXXXXXXXXXXXXX
 ```
+
 
 
 ### deploy_vm.sh main logic: 
@@ -69,13 +86,6 @@ prereqs:
 ~~~
 
 
-
-### healthcheck 
-
-~~~
-* navigate in your browser to http://$PUBLICIP/_cat/nodes?v
-* login as esadmin:test123 
-~~~
 
 
 ```
