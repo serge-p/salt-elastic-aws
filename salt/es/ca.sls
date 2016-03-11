@@ -36,8 +36,8 @@ openssl req -days 3650 -batch -nodes -new -keyout private/server.key -out privat
     - cwd: /etc/elasticsearch/shield/ca
     - creates: /etc/elasticsearch/shield/ca/private/server.csr
 
-openssl x509 -req -days 3650 -in private/server.csr -out server.crt -CA certs/cacert.pem -CAkey private/cakey.pem  -CAcreateserial:
+openssl x509 -req -days 3650 -in private/server.csr -out certs/server.crt -CA certs/cacert.pem -CAkey private/cakey.pem  -CAcreateserial:
   cmd.run:
     - cwd: /etc/elasticsearch/shield/ca
-    - creates: /etc/elasticsearch/shield/ca/server.crt
+    - creates: /etc/elasticsearch/shield/ca/certs/server.crt
 

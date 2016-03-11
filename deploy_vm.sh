@@ -10,11 +10,11 @@
 ######################################################################################
 
 
-DEFAULT_SLEEP=20
 GIT_REPO=github.com/serge-p/salt-elastic-aws.git
 EC2_BASE=/tmp/ec2
 AMI_ID=ami-8fcee4e5
 IAM_ROLE=es-role
+DEFAULT_SLEEP=30
 
 
 ######################################################################################
@@ -150,7 +150,7 @@ do_install_ec2_cli() {
 do_create_ec2_key_pair() { 
 
 	if [ $(ec2-describe-keypairs test | wc -l) -gt 0 ] ; then 
-		echoinfo $(ec2-describe-keypairs test)
+		echoinfo "$(ec2-describe-keypairs test)"
 	else
 		ec2-create-keypair test || echowarn "Unable to create keypair"
 	fi
@@ -246,11 +246,12 @@ do_create_ec2_key_pair
 do_update_ec2_sec_group
 
 if [ ! -z $1 ] && [ $1 -gt 0 ] && [ $1 -le 5 ]; then N=$1 ; else N=1 ; fi
-for i in 1 .. $N 
+while [[ $N -gt $i ]]
 do 
-echoinfo Building $i machine
-do_start_ec2_instance
+	i=$(($i+1))
+	echoinfo "Starting instance $i"
+	do_start_ec2_instance
 done
 
-#sleep ${DEFAULT_SLEEP}
+sleep ${DEFAULT_SLEEP}
 do_check_ec2_instances

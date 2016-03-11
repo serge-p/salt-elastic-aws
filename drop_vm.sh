@@ -153,5 +153,5 @@ detect_color_support
 do_set_java_env
 do_java_check
 do_drop_ec2_instance
-sleep 10
+sleep 20
 do_update_ec2_sec_group

@@ -2,7 +2,3 @@
 
 cluster.name: testcluster
 node.name: "{{ grains['fqdn'] }}"
-node.data: true
-node.master: true
-discovery.type: ec2
-discovery.ec2.groups: es
