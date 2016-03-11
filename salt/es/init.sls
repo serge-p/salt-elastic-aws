@@ -56,6 +56,10 @@ es_install:
         - pkg: elasticsearch
         - file: /etc/elasticsearch/elasticsearch.yml
         - file: /etc/sysconfig/elasticsearch 
+    - watch: 
+        - file: /etc/elasticsearch/elasticsearch.yml
+        - file: /etc/sysconfig/elasticsearch 
+
 
 #############################################################
 # config part 

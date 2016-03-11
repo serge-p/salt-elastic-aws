@@ -5,8 +5,6 @@
 {% set adminpass  = 'test123' %}
 {% set storepass  = 'supersecure' %}
 
-include: 
-  - es
 
 #############################################################
 # Install plugins 
