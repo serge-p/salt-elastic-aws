@@ -229,7 +229,7 @@ do_start_ec2_instance() {
 
 do_check_ec2_instances() {
 
-while [[ $N -ge $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE| wc -l) ]]
+while [[ $N -gt $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE| wc -l) ]]
 do 
 sleep ${DEFAULT_SLEEP}
 done
