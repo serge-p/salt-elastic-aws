@@ -1,4 +1,4 @@
-# Building Secure Cloud ElasticSearch Instance Exercise
+# Autoprovisioning Secure Cloud ElasticSearch Instance
 
 
 ## Overview: 
