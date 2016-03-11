@@ -1,4 +1,4 @@
-# Autoprovisioning Secure Cloud ElasticSearch Instance
+# Secure ElasticSearch Instance Autoprovision in AWS
 
 
 ## Overview: 
@@ -39,37 +39,6 @@ host          ip            heap.percent ram.percent load node.role master name
 172.31.52.173 172.31.52.173            7          81 0.00 d         m      esnode-02 
 ```
 
-
-
-## additional manual steps for a secure cluster configuration: 
-
-
-Once initial deployment and bootstraping will be completed and each node will be available by it's own IP,
-following steps will need to be done manually: 
-
-
-* copy (scp) CA certificates located `/etc/elasticsearch/shield/ca/certs/cacert.pem` from all nodes to the first node 
-* using keytool insert them into truststore on a first node as following:
-
-
-```
-cd /etc/elasticsearch/shield/
-keytool -importcert -keystore truststore.jks  -file ca/certs/esnode-02-cacert.pem -alias esnode-02-ca -storepass supersecure -noprompt -trustcacerts
-
-```
-
-* copy (scp) file /etc/elasticsearch/shield/truststore.jks from the first node to all nodes in the cluster
-* copy (scp) file /etc/elasticsearch/shield/system_key from the first node to all nodes in the cluster 
-* restart all the nodes in the cluster
-
-
-example output: 
-
-```
-host          ip            heap.percent ram.percent load node.role master name      
-172.31.52.173 172.31.52.173            7          81 0.00 d         m      esnode-02 
-172.31.56.146 172.31.56.146           10          83 0.00 d         *      esnode-01 
-```
 
 
 ## connection details:     
@@ -165,18 +134,53 @@ prereqs:
 * configure nginx as a proxy for external search requests   
 
 
+
+## additional manual steps for a secure cluster configuration: 
+
+
+Once initial deployment and bootstraping will be completed and each node will be available by it's own IP,
+following steps will need to be done manually: 
+
+
+* copy (scp) CA certificates located `/etc/elasticsearch/shield/ca/certs/cacert.pem` from all nodes to the first node 
+* using keytool insert them into truststore on a first node as following:
+
+
+```
+cd /etc/elasticsearch/shield/
+keytool -importcert -keystore truststore.jks  -file ca/certs/esnode-02-cacert.pem -alias esnode-02-ca -storepass supersecure -noprompt -trustcacerts
+
+```
+
+* copy (scp) file /etc/elasticsearch/shield/truststore.jks from the first node to all nodes in the cluster
+* copy (scp) file /etc/elasticsearch/shield/system_key from the first node to all nodes in the cluster 
+* restart all the nodes in the cluster
+
+
+example output: 
+
+```
+host          ip            heap.percent ram.percent load node.role master name      
+172.31.52.173 172.31.52.173            7          81 0.00 d         m      esnode-02 
+172.31.56.146 172.31.56.146           10          83 0.00 d         *      esnode-01 
+```
+
+
+
 *** 
+
 
 
 
 ### drop_vm.sh   
 
-* terminate given EC2 instance, 
-* script takes valid instance ID as an argument
+Script will terminate all (or given) EC2 instances in group `es`, script takes instance ID as an optional  argument
 
 
+*** 
 
-#### references:
+
+### references:
 
 
 [Elastic Search Official Documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
