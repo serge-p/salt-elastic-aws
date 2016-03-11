@@ -50,10 +50,16 @@ bin/plugin install {{ plugin }}:
 
 
 
-# Keytool part 
+# Keytool part
+# reference: https://www.elastic.co/guide/en/shield/current/ssl-tls.html#create-truststore 
 #############################################################
 
 
+
+keytool -importcert -keystore truststore.jks  -file ca/certs/cacert.pem -alias {{ hostname }}-ca -storepass {{ storepass }} -noprompt -trustcacerts:
+  cmd.run: 
+    - cwd: /etc/elasticsearch/shield
+    - unless: keytool -list -keystore truststore.jks -storepass {{ storepass }} |grep {{ hostname }}-ca 
 
 
 keytool -importcert -keystore {{ hostname }}.jks -file ca/certs/cacert.pem -alias {{ hostname }}-ca -storepass {{ storepass }} -noprompt -trustcacerts:
@@ -87,6 +93,9 @@ keytool -importcert -keystore {{ hostname }}.jks -file {{ hostname }}-signed.crt
 
 
 
+
+
+
 # Shield config block    
 #############################################################
 
@@ -101,10 +110,12 @@ keytool -importcert -keystore {{ hostname }}.jks -file {{ hostname }}-signed.crt
     - content: | 
         discovery.type: ec2
         discovery.ec2.groups: es
-        network.host: _ec2_
+        network.host: [ _ec2_ , _local_ ]
         node.data: true
         node.master: true
         shield.audit.enabled: true
+        shield.ssl.truststore.path:        /etc/elasticsearch/shield/truststore.jks
+        shield.ssl.truststore.password:    {{ storepass }}
         shield.ssl.keystore.path:          /etc/elasticsearch/shield/{{ hostname }}.jks 
         shield.ssl.keystore.password:      {{ storepass }}
         shield.ssl.keystore.key_password:  {{ storepass }}

@@ -166,8 +166,8 @@ do_update_ec2_sec_group() {
 	ec2-revoke es -p -1 1>/dev/null 2>&1
 	ec2-authorize es -p 22  || echowarn "Unable to add a rule to ES security group"
 	ec2-authorize es -p 443  || echowarn "Unable to add a rule to ES security group"
-#	ec2-authorize es -p 9200 --cidr 172.31.0.0/24  || echowarn "Unable to add a rule to ES security group"
-#	ec2-authorize es -p 9300 --cidr  172.31.0.0/24 || echowarn "Unable to add a rule to ES security group"
+	ec2-authorize es -p 9200 --cidr 172.31.0.0/16  || echowarn "Unable to add a rule to ES security group"
+	ec2-authorize es -p 9300 --cidr  172.31.0.0/16 || echowarn "Unable to add a rule to ES security group"
 
 }
 
@@ -229,11 +229,12 @@ do_start_ec2_instance() {
 
 do_check_ec2_instances() {
 
-while [ -z $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE) ]
+while [[ $N -gt $(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE| wc -l) ]]
 do 
 sleep ${DEFAULT_SLEEP}
 done
-echoinfo "$(ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'})"
+
+ec2-describe-instances  --filter instance.group-name=es --filter  instance-state-name=running |grep INSTANCE |awk {'print $1, $2, $6, $13, $14'}
 
 }
 
@@ -257,8 +258,6 @@ while [[ $N -gt $i ]]
 do 
 	i=$(($i+1))
 	echoinfo "Starting instance $i"
-	do_start_ec2_instance
+#	do_start_ec2_instance
 done
-
-sleep ${DEFAULT_SLEEP}
 do_check_ec2_instances
