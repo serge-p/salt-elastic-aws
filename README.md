@@ -1,4 +1,4 @@
-# Secure ElasticSearch Instance Autoprovision in AWS
+# Build Secure ElasticSearch Instance in Ec2
 
 
 ## Overview: 
@@ -20,7 +20,7 @@ and trial version of ES Shield Plugin for:
 ## example usage: 
 
 ```shell
-git clone https://github.com/serge-p/salt-elastic-aws 
+git clone https://github.com/serge-p/salt-elastic-aws.git
 cd salt-elastic-aws
 
 export AWS_ACCESS_KEY=XXXXXXXXXXXXXXXXXXXX
