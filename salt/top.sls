@@ -1,5 +1,5 @@
 base:
-  '*':
+  'es*':
     - baselevel
     - java
     - java.jce

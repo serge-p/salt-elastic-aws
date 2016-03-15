@@ -171,59 +171,186 @@ do_update_ec2_sec_group() {
 
 }
 
+
+do_gen_salt_pillar() {
+
+
+DIR=/srv/pillar
+[[ -d ${DIR} ]] || mkdir -p ${DIR}
+
+cat << EOF > ${DIR}/top.sls  
+base:
+  'es*':
+  	- java
+    - elasticsearch
+EOF
+
+}
+
+
+
+do_gen_salt_reactors() {
+
+
+DIR=/etc/salt/master.d
+[[ -d $DIR ]] || mkdir -p $DIR 
+cat << EOF > ${DIR}/reactor.conf  
+reactor:
+  - 'salt/auth':
+    - /srv/salt/reactor/auth-pending.sls
+EOF
+
+
+DIR=/srv/salt/reactor
+[[ -d $DIR ]] || mkdir -p $DIR 
+
+cat << EOF > ${DIR}/auth-pending.sls  
+
+{# Ink server is sending new key -- accept this key #}
+
+{% if 'act' in data and data['act'] == 'pend' and data['id'].startswith('esnode') %}
+minion_add:
+  wheel.key.accept:
+    - match: {{ data['id'] }}
+{% endif %}
+
+EOF
+}
+
+
+
+do_gen_init_master_node() {
+
+MYNAME=esnode-01
+echoinfo "generating init script for $MYNAME"
+
+cat << EOF >ec2-init.sh
+
+#!/bin/sh
+
+echo ${MYNAME} > /etc/hostname && hostname -F /etc/hostname
+
+yum update -y 
+yum -y install wget git 
+
+wget ${BOOTSTRAP_URL} -O install_salt.sh || curl -L ${BOOTSTRAP_URL} -o install_salt.sh 
+sh install_salt.sh -i ${MYNAME} -A 127.0.0.1 -M -L -P -U 
+
+echo "state_output: mixed" > /etc/salt/master.d/custom.conf
+echo "log_level_logfile: debug" >> /etc/salt/master.d/custom.conf
+
+git clone -b more-salt https://${GIT_REPO} /srv || return 1  
+
+do_gen_salt_pillar
+do_gen_salt_reactors
+
+cp /srv/salt/master.pillar.example.sls /srv/pillar/elasticsearch.sls
+&& service salt-minion restart 
+salt-call state.highstate 1>/var/log/salt-highstate.log 2>&1
+
+
+
+EOF
+
+
+
+}
+
+do_gen_init_regular_node() {
+
+[[ -z $i ]] && NODE_ID=1 || NODE_ID=$i
+
+
+MYNAME=esnode-0${NODE_ID}
+echoinfo "generating init script for $MYNAME"
+
+
+cat << EOF >ec2-init.sh
+
+#!/bin/sh
+
+echo ${MYNAME} > /etc/hostname && hostname -F /etc/hostname
+
+yum update -y 
+yum -y install wget git 
+
+wget ${BOOTSTRAP_URL} -O install_salt.sh || curl -L ${BOOTSTRAP_URL} -o install_salt.sh 
+sh install_salt.sh -X -i ${MYNAME}
+
+EOF 
+
+if [ ! -z ${MASTER_IP} ]; then 
+
+cat << EOF >> ec2-init.sh  
+echo "master: ${MASTER_IP}">/etc/salt/minion.d/master.conf 
+service salt-minion start
+
+
+EOF 
+
+else 
+
+cat << EOF >> ec2-init.sh  
+
+echo "file_client: local" >/etc/salt/minion.d/masterless.conf
+echo "state_output: mixed" >> /etc/salt/minion.d/masterless.conf
+
+git clone -b more-salt https://${GIT_REPO} /srv  
+salt-call --local state.highstate 1>/var/log/salt-highstate.log 2>&1
+
+EOF
+fi 
+
+
+chmod +x ./ec2-init.sh
+
+
+
+}
+
 do_gen_init_script() { 
 
-
-if [ ! -z $i ] && [ $i -gt 1 ]; then NODE_ID=0${i} ; else NODE_ID=01 ; fi
-
-#
-# discovered bug in bootstrap script, which is fixed in dev version (ref https://github.com/saltstack/salt-bootstrap/issues/742) 
+# found a bug in bootstrap script, which is fixed in dev version (ref https://github.com/saltstack/salt-bootstrap/issues/742) 
 # uncomment to use Development branch for a salt bootstrap script :
 #
+
 export BOOTSTRAP_URL="https://raw.githubusercontent.com/saltstack/salt-bootstrap/develop/bootstrap-salt.sh"
 
 # to use stable version of salt bootstrap script uncomment below line: 
 # export BOOTSTRAP_URL=https://bootstrap.saltstack.com
 # 
 
-echoinfo "generating ec2 cloud init script"
-echoinfo "cloud init log: /var/log/cloud-init-output.log"
-echoinfo "salt bootstrap log: /tmp/bootstrap-salt.log"  
 
-cat << EOF >ec2-init.sh
+if [ $i -eq 1 ] #&& [[ $i -ne $N ]] 
+then 
+	export TAG="esmaster"
+	do_gen_init_master_node 
+else
+	unset TAG  
+	do_gen_init_regular_node 
+fi
 
-#!/bin/sh
+echoinfo "log from cloud init: /var/log/cloud-init-output.log"
+echoinfo "log from salt bootstrap: /tmp/bootstrap-salt.log"  
 
-echo esnode-${NODE_ID} > /etc/hostname && hostname -F /etc/hostname
 
-yum -y install wget git 
 
-wget ${BOOTSTRAP_URL} -O install_salt.sh || curl -L ${BOOTSTRAP_URL} -o install_salt.sh 
-sh install_salt.sh
-
-echo "file_client: local" >/etc/salt/minion.d/masterless.conf
-echo "state_output: mixed" >> /etc/salt/minion.d/masterless.conf
-
-git clone -b master https://${GIT_REPO} /srv  
-salt-call --local state.highstate 1>/var/log/salt-highstate.log 2>&1
-EOF
-
-chmod +x ./ec2-init.sh
 }
 
 
 do_start_ec2_instance() { 
 	
-	do_gen_init_script || return 1  
-	if [ -f ec2-init.sh ] ; then 
-		echoinfo "Starting EC2 instance"
-		ec2-run-instances --group es --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID --iam-profile $IAM_ROLE || return 1 
-		rm ./ec2-init.sh
-	else 
-		echoerror "Something went wrong Init file is missing" 
-		return 1  
-	fi
-	echoinfo "Allow some time for VM to Bootstrap .."
+do_gen_init_script || return 1  
+echoinfo "Starting EC2 instance"
+ec2-run-instances --group es --key test --instance-type t2.micro -f ec2-init.sh $AMI_ID --iam-profile $IAM_ROLE || return 1 
+rm ./ec2-init.sh
+
+if [ $TAG = "esmaster" ]; then
+export MASTER_IP=$(ec2-describe-instances  --filter instance.group-name=es --filter tag=esmaster |grep INSTANCE  |awk {'print $14'})
+ec2-create-tags $(ec2-describe-instances  --filter instance.group-name=es |grep INSTANCE | awk {'print $2'}) --tag $TAG
+fi 
+
+echoinfo "Allow some time for VM to Bootstrap .."
 
 }
 
@@ -257,7 +384,7 @@ if [ ! -z $1 ] && [ $1 -gt 0 ] && [ $1 -le 5 ]; then N=$1 ; else N=1 ; fi
 while [[ $N -gt $i ]]
 do 
 	i=$(($i+1))
-	echoinfo "Starting instance $i"
+	echoinfo "Building instance $i"
 	do_start_ec2_instance
 done
 do_check_ec2_instances
